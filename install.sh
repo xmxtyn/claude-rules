@@ -5,9 +5,10 @@
 # 用法：
 #   curl ... | bash                    # 一键安装
 #   bash install.sh --dry-run         # 演练模式
+#   bash install.sh --backup          # 安装前备份当前配置
+#   bash install.sh --uninstall       # 卸载并恢复原始配置
 #   bash install.sh --rollback        # 回滚到上一版本
 #   bash install.sh --list-backups    # 列出所有备份
-#   bash install.sh --no-verify       # 跳过校验（应急用）
 # ============================================================
 
 set -euo pipefail
@@ -15,6 +16,7 @@ set -euo pipefail
 # -------------------- 配置 --------------------
 REPO_URL="${REPO_URL:-https://github.com/xmxtyn/claude-rules.git}"
 BACKUP_DIR="${HOME}/.claude/.backup"
+ORIGINAL_BACKUP="${HOME}/.claude/.original_backup.tar.gz"
 MAX_KEEP=5
 TEMPLATE_VERSION_FILE="${HOME}/.claude/.template_version"
 
@@ -40,39 +42,142 @@ Claude 规则体系安装脚本
     bash install.sh [选项]
 
 选项：
-    --dry-run         演练模式，显示将要执行的操作
-    --verify          校验完整性（默认强制）
-    --no-verify       跳过校验（应急用）
-    --rollback        回滚到上一版本
-    --list-backups    列出所有可用备份
-    --help            显示帮助信息
+    --backup         安装前备份当前配置到 .original_backup.tar.gz
+    --uninstall      卸载并恢复原始配置（使用备份文件）
+    --dry-run        演练模式，显示将要执行的操作
+    --verify         校验完整性（默认强制）
+    --no-verify      跳过校验（应急用）
+    --rollback       回滚到上一版本
+    --list-backups   列出所有备份
+    --help           显示帮助信息
 
 示例：
     bash install.sh                    # 标准安装
-    bash install.sh --dry-run         # 先看看会做什么
-    bash install.sh --rollback         # 回滚
+    bash install.sh --backup          # 先备份，再安装
+    bash install.sh --uninstall       # 恢复原始配置
+    bash install.sh --rollback        # 回滚
+    bash install.sh --dry-run         # 演练模式
 EOF
 }
 
-# -------------------- 备份相关函数 --------------------
-list_backups() {
-    if [[ ! -d "$BACKUP_DIR" ]]; then
-        log_warn "暂无备份"
-        return
+# -------------------- 备份当前配置 --------------------
+backup_current() {
+    log_info "开始备份当前配置..."
+
+    if [[ ! -d "${HOME}/.claude" ]] || [[ -z "$(ls -A "${HOME}/.claude" 2>/dev/null)" ]]; then
+        log_warn " ~/.claude/ 为空或不存在，无需备份"
+        return 0
     fi
 
-    log_info "可用备份："
+    # 检查 tar 命令
+    if ! command -v tar &>/dev/null; then
+        log_error "tar 命令不可用，无法创建备份"
+        exit 1
+    fi
+
+    # 删除旧备份
+    if [[ -f "$ORIGINAL_BACKUP" ]]; then
+        log_info "删除旧备份文件..."
+        rm -f "$ORIGINAL_BACKUP"
+    fi
+
+    # 创建备份（排除 .backup 和 .original_backup.tar.gz）
+    cd "${HOME}"
+    tar -czf "$ORIGINAL_BACKUP" \
+        --exclude='.backup' \
+        --exclude='.original_backup.tar.gz' \
+        --exclude='.template_version' \
+        claude 2>/dev/null || true
+
+    if [[ -f "$ORIGINAL_BACKUP" ]]; then
+        size=$(du -h "$ORIGINAL_BACKUP" | cut -f1)
+        log_success "备份完成！"
+        log_info "备份文件：${ORIGINAL_BACKUP}"
+        log_info "备份大小：${size}"
+        echo ""
+        log_warn "此备份文件用于 --uninstall 恢复，请勿删除！"
+    else
+        log_error "备份失败"
+        exit 1
+    fi
+}
+
+# -------------------- 卸载并恢复 --------------------
+uninstall() {
+    log_info "开始卸载..."
+
+    if [[ ! -f "$ORIGINAL_BACKUP" ]]; then
+        log_error "找不到原始备份文件：${ORIGINAL_BACKUP}"
+        echo ""
+        echo "请先运行：bash install.sh --backup"
+        exit 1
+    fi
+
+    # 检查备份完整性
+    if ! tar -tzf "$ORIGINAL_BACKUP" &>/dev/null; then
+        log_error "备份文件损坏，无法恢复"
+        exit 1
+    fi
+
+    log_warn "即将恢复原始配置，当前配置将被覆盖！"
     echo ""
-    printf "%-50s %s\n" "版本目录" "创建时间"
-    printf "%s\n" "----------------------------------------------------------------------"
-    ls -ltd "${BACKUP_DIR}"/*/ 2>/dev/null | while read -r dir; do
-        dirname=$(basename "$dir")
-        mtime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$dir" 2>/dev/null || stat -c "%y" "$dir" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
-        printf "%-50s %s\n" "$dirname" "$mtime"
-    done
+    read -r -p "确认恢复？[y/N] " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        log_info "取消恢复"
+        exit 0
+    fi
+
+    # 清理当前配置
+    log_info "清理当前配置..."
+    rm -rf "${HOME}/.claude"/*
+
+    # 恢复备份
+    log_info "恢复原始配置..."
+    cd "${HOME}"
+    tar -xzf "$ORIGINAL_BACKUP"
+
+    # 删除版本文件
+    rm -f "$TEMPLATE_VERSION_FILE"
+
+    log_success "卸载完成！"
+    log_info "已恢复到原始配置"
+    echo ""
+    echo "提示：原始备份文件仍保留在 ${ORIGINAL_BACKUP}"
+    echo "如需彻底清理，可手动删除此文件"
+}
+
+# -------------------- 列出备份 --------------------
+list_backups() {
+    if [[ ! -d "$BACKUP_DIR" ]]; then
+        log_warn "暂无版本备份"
+    else
+        log_info "可用版本备份："
+        echo ""
+        printf "%-50s %s\n" "版本目录" "创建时间"
+        printf "%s\n" "----------------------------------------------------------------------"
+        ls -ltd "${BACKUP_DIR}"/*/ 2>/dev/null | while read -r dir; do
+            dirname=$(basename "$dir")
+            mtime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$dir" 2>/dev/null || stat -c "%y" "$dir" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+            printf "%-50s %s\n" "$dirname" "$mtime"
+        done
+        echo ""
+    fi
+
+    # 显示原始备份
+    if [[ -f "$ORIGINAL_BACKUP" ]]; then
+        size=$(du -h "$ORIGINAL_BACKUP" | cut -f1)
+        mtime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$ORIGINAL_BACKUP" 2>/dev/null || stat -c "%y" "$ORIGINAL_BACKUP" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+        log_info "原始备份："
+        printf "  文件：%s\n" "$ORIGINAL_BACKUP"
+        printf "  大小：%s\n" "$size"
+        printf "  时间：%s\n" "$mtime"
+    else
+        log_info "原始备份：无（未执行过 --backup）"
+    fi
     echo ""
 }
 
+# -------------------- 回滚 --------------------
 rollback() {
     log_info "开始回滚..."
 
@@ -85,7 +190,7 @@ rollback() {
     backups=($(ls -ltd "${BACKUP_DIR}"/*/ 2>/dev/null | head -n 2))
 
     if [[ ${#backups[@]} -lt 2 ]]; then
-        log_error "需要至少 2 个备份才能回滚"
+        log_error "需要至少 2 个版本备份才能回滚"
         exit 1
     fi
 
@@ -163,6 +268,17 @@ do_install() {
 
     log_info "开始安装 Claude 规则体系..."
 
+    # 检查是否有原始备份
+    if [[ ! -f "$ORIGINAL_BACKUP" ]]; then
+        log_warn "未找到原始备份，建议先运行 --backup 备份当前配置"
+        read -r -p "是否先备份？[y/N] " backup_choice
+        if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
+            backup_current
+        fi
+    else
+        log_info "已存在原始备份：${ORIGINAL_BACKUP}"
+    fi
+
     # 创建备份目录
     mkdir -p "${BACKUP_DIR}"
 
@@ -209,13 +325,13 @@ do_install() {
     # 备份当前版本
     if [[ -d "${HOME}/.claude" ]] && [[ "$(ls -A "${HOME}/.claude")" ]]; then
         backup_name="v${version}_${timestamp}_${checksum}"
-        log_info "创建备份：${backup_name}"
+        log_info "创建版本备份：${backup_name}"
         cp -a "${HOME}/.claude" "${BACKUP_DIR}/${backup_name}"
 
         # 清理旧备份，保留最多 MAX_KEEP 个
         backups=($(ls -ltd "${BACKUP_DIR}"/*/ 2>/dev/null))
         if [[ ${#backups[@]} -gt $MAX_KEEP ]]; then
-            log_info "清理旧备份，保留最近 ${MAX_KEEP} 个..."
+            log_info "清理旧版本备份，保留最近 ${MAX_KEEP} 个..."
             for ((i=$MAX_KEEP; i<${#backups[@]}; i++)); do
                 rm -rf "${backups[$i]}"
             done
@@ -246,12 +362,11 @@ do_install() {
     log_success "安装完成！"
     echo ""
     log_info "安装版本：${version}"
-    log_info "备份位置：${BACKUP_DIR}"
     echo ""
     echo "后续命令："
     echo "  bash install.sh --list-backups   # 查看备份"
     echo "  bash install.sh --rollback       # 回滚"
-    echo "  bash install.sh --dry-run        # 演练模式"
+    echo "  bash install.sh --uninstall     # 恢复原始配置"
 }
 
 # -------------------- 主流程 --------------------
@@ -263,6 +378,12 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --backup)
+                action="backup"
+                ;;
+            --uninstall)
+                action="uninstall"
+                ;;
             --dry-run)
                 dry_run="true"
                 ;;
@@ -292,6 +413,12 @@ main() {
     done
 
     case "$action" in
+        backup)
+            backup_current
+            ;;
+        uninstall)
+            uninstall
+            ;;
         install)
             do_install "$verify" "$dry_run"
             ;;
