@@ -16,7 +16,7 @@
 ### 方式 1：curl 一键安装（推荐）
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/user/rules-template/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/xmxtyn/claude-rules/main/install.sh | bash
 ```
 
 ### 方式 2：clone 后安装
