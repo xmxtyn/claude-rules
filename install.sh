@@ -13,7 +13,7 @@
 set -euo pipefail
 
 # -------------------- 配置 --------------------
-REPO_URL="${REPO_URL:-https://github.com/user/rules-template.git}"
+REPO_URL="${REPO_URL:-https://github.com/xmxtyn/claude-rules.git}"
 BACKUP_DIR="${HOME}/.claude/.backup"
 MAX_KEEP=5
 TEMPLATE_VERSION_FILE="${HOME}/.claude/.template_version"
@@ -150,7 +150,7 @@ verify_checksums() {
         echo "解决方案："
         echo "  1. 重试：再次运行 install.sh"
         echo "  2. 跳过校验：bash install.sh --no-verify"
-        echo "  3. 报告问题：https://github.com/user/rules-template/issues"
+        echo "  3. 报告问题：https://github.com/xmxtyn/claude-rules/issues"
         echo ""
         exit 1
     fi

@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/user/rules-template/main/install.sh
 ### 方式 2：clone 后安装
 
 ```bash
-git clone https://github.com/user/rules-template.git ~/rules-template
+git clone https://github.com/xmxtyn/claude-rules.git ~/rules-template
 bash ~/rules-template/install.sh
 ```
 
@@ -120,7 +120,7 @@ rules-template/
 解决方案：
   1. 重试：再次运行 install.sh
   2. 跳过校验：bash install.sh --no-verify
-  3. 报告问题：https://github.com/user/rules-template/issues
+  3. 报告问题：https://github.com/xmxtyn/claude-rules/issues
 ```
 
 ## 常见问题
@@ -143,7 +143,7 @@ A: 目前 V1 支持最新版本，V2 将支持 `--version` 参数指定版本。
 
 ## 反馈问题
 
-发现问题或有功能建议？请提交 [Issue](https://github.com/user/rules-template/issues)。
+发现问题或有功能建议？请提交 [Issue](https://github.com/xmxtyn/claude-rules/issues)。
 
 ## CHANGELOG
 
