@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # -------------------- 配置 --------------------
-REPO_URL="${REPO_URL:-https://github.com/xmxtyn/claude-rules.git}"
+REPO_URL="${REPO_URL:-https://gitee.com/xmxtyn/claude-rules.git}"
 BACKUP_DIR="${HOME}/.claude/.backup"
 ORIGINAL_BACKUP="${HOME}/.claude/.original_backup.tar.gz"
 MAX_KEEP=5

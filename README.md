@@ -13,16 +13,27 @@
 
 ## 安装方式
 
-### 方式 1：curl 一键安装（推荐）
+### 方式 1：curl 一键安装（国内推荐）
+
+```bash
+curl -fsSL https://gitee.com/xmxtyn/claude-rules/raw/main/install.sh | bash
+```
+
+### 方式 2：curl 一键安装（GitHub）
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xmxtyn/claude-rules/main/install.sh | bash
 ```
 
-### 方式 2：clone 后安装
+### 方式 3：clone 后安装
 
 ```bash
-git clone https://github.com/xmxtyn/claude-rules.git ~/rules-template
+# Gitee
+git clone https://gitee.com/xmxtyn/claude-rules.git ~/rules-template
+
+# 或 GitHub
+git clone https://gitee.com/xmxtyn/claude-rules.git ~/rules-template
+
 bash ~/rules-template/install.sh
 ```
 
