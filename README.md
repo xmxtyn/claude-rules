@@ -6,6 +6,7 @@
 
 - **一键安装**：一行命令即可完成安装
 - **完整性校验**：SHA256 校验和验证，确保文件未被篡改
+- **原始备份**：安装前可备份当前配置，支持完全恢复
 - **版本化备份**：保留最近 5 个版本的备份，支持随时回滚
 - **幂等性设计**：已安装时提示确认，避免意外覆盖
 - **演练模式**：支持 `--dry-run` 预览安装操作
@@ -31,35 +32,61 @@ bash ~/rules-template/install.sh
 
 | 选项 | 说明 |
 |------|------|
+| `--backup` | 安装前备份当前配置到 .original_backup.tar.gz |
+| `--uninstall` | 卸载并恢复原始配置（使用备份文件） |
 | `--dry-run` | 演练模式，显示将要执行的操作，不实际安装 |
 | `--verify` | 校验完整性（默认强制） |
 | `--no-verify` | 跳过校验（应急用） |
 | `--rollback` | 回滚到上一版本 |
-| `--list-backups` | 列出所有可用备份 |
+| `--list-backups` | 列出所有可用备份（含原始备份） |
 | `--help` | 显示帮助信息 |
 
 ### 常用命令
 
 ```bash
+# 备份当前配置（安装前必做）
+bash install.sh --backup
+
 # 标准安装
 bash install.sh
 
 # 先看看会做什么
 bash install.sh --dry-run
 
-# 查看可用备份
+# 查看可用备份（含原始备份）
 bash install.sh --list-backups
 
 # 回滚到上一版本
 bash install.sh --rollback
 
+# 恢复原始配置（卸载）
+bash install.sh --uninstall
+
 # 跳过校验安装（不推荐）
 bash install.sh --no-verify
 ```
 
-## 备份与回滚
+## 备份与恢复
 
-### 备份位置
+### 原始备份
+
+安装前建议先备份当前配置：
+
+```bash
+bash install.sh --backup
+```
+
+这会将 `~/.claude/` 打包保存到 `~/.claude/.original_backup.tar.gz`。
+
+### 恢复原始配置
+
+卸载规则体系，恢复到安装前的状态：
+
+```bash
+bash install.sh --uninstall
+```
+
+### 版本备份
 
 备份存储在 `~/.claude/.backup/` 目录。
 
