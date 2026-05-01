@@ -274,6 +274,8 @@ do_install() {
         read -r -p "是否先备份？[y/N] " backup_choice
         if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
             backup_current
+        else
+            log_info "跳过备份，继续安装..."
         fi
     else
         log_info "已存在原始备份：${ORIGINAL_BACKUP}"
