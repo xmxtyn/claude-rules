@@ -121,10 +121,14 @@ uninstall() {
 
     log_warn "即将恢复原始配置，当前配置将被覆盖！"
     echo ""
-    read -r -p "确认恢复？[y/N] " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        log_info "取消恢复"
-        exit 0
+    if [[ -t 0 ]]; then
+        read -r -p "确认恢复？[y/N] " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            log_info "取消恢复"
+            exit 0
+        fi
+    else
+        log_info "检测到非交互模式，自动确认恢复"
     fi
 
     # 清理当前配置
@@ -201,10 +205,14 @@ rollback() {
     log_info "将回滚到：$(basename "$previous_backup")"
     echo ""
 
-    read -r -p "确认回滚？[y/N] " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        log_info "取消回滚"
-        exit 0
+    if [[ -t 0 ]]; then
+        read -r -p "确认回滚？[y/N] " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            log_info "取消回滚"
+            exit 0
+        fi
+    else
+        log_info "检测到非交互模式，自动确认回滚"
     fi
 
     # 执行回滚
@@ -271,11 +279,16 @@ do_install() {
     # 检查是否有原始备份
     if [[ ! -f "$ORIGINAL_BACKUP" ]]; then
         log_warn "未找到原始备份，建议先运行 --backup 备份当前配置"
-        read -r -p "是否先备份？[y/N] " backup_choice
-        if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
-            backup_current
+        # 管道模式（curl ... | bash）下跳过交互提示
+        if [[ -t 0 ]]; then
+            read -r -p "是否先备份？[y/N] " backup_choice
+            if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
+                backup_current
+            else
+                log_info "跳过备份，继续安装..."
+            fi
         else
-            log_info "跳过备份，继续安装..."
+            log_info "检测到非交互模式，跳过备份提示，直接安装"
         fi
     else
         log_info "已存在原始备份：${ORIGINAL_BACKUP}"
@@ -288,14 +301,18 @@ do_install() {
     if [[ -f "${TEMPLATE_VERSION_FILE}" ]]; then
         current_version=$(cat "${TEMPLATE_VERSION_FILE}")
         log_warn "检测到已安装版本：${current_version}"
-        echo ""
-        echo "1. 覆盖安装（保留当前版本为备份）"
-        echo "2. 退出"
-        read -r -p "请选择 [1/2]: " choice
-        case "$choice" in
-            2) log_info "退出安装"; exit 0 ;;
-            *) log_info "继续覆盖安装..." ;;
-        esac
+        if [[ -t 0 ]]; then
+            echo ""
+            echo "1. 覆盖安装（保留当前版本为备份）"
+            echo "2. 退出"
+            read -r -p "请选择 [1/2]: " choice
+            case "$choice" in
+                2) log_info "退出安装"; exit 0 ;;
+                *) log_info "继续覆盖安装..." ;;
+            esac
+        else
+            log_info "检测到非交互模式，自动选择覆盖安装"
+        fi
     fi
 
     # 创建临时目录
